@@ -4,14 +4,10 @@
 
 <p>MessengerSolution
 <p>│
-<p>├── Server
+<p>├── Server - Я
 <p>│   ├── Program.cs
 <p>│   ├── Server.cs
-<p>│   └── ClientHandler.cs
 <p>│
 <p>├── Client
-<p>│   ├── MainWindow.xaml
-<p>│   ├── MainWindow.xaml.cs
-<p>│   ├── ClientConnection.cs
-<p>│   ├── MessageReceiver.cs
-<p>│   └── ChatMessage.cs
+<p>│   ├── MainWindow.xaml - Матвій(Кравець)
+<p>│   ├── MainWindow.xaml.cs -Діма

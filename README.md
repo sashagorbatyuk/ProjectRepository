@@ -2,8 +2,7 @@
 -important group project-
 -Theme : Multi-Client Messenger-
 
-
-/MessengerSolution
+<p>/MessengerSolution
 │
 ├── Server
 │   ├── Program.cs
@@ -22,3 +21,4 @@
 │
 └── Tests
     └── ManualTestPlan.md
+</p>

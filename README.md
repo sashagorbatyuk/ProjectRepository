@@ -2,23 +2,16 @@
 -important group project-
 -Theme : Multi-Client Messenger-
 
-<p>/MessengerSolution
-│
-├── Server
-│   ├── Program.cs
-│   ├── Server.cs
-│   └── ClientHandler.cs
-│
-├── Client
-│   ├── MainWindow.xaml
-│   ├── MainWindow.xaml.cs
-│   ├── ClientConnection.cs
-│   ├── MessageReceiver.cs
-│   └── ChatMessage.cs
-│
-├── Shared
-│   └── ChatMessage.cs         // DTO для передачі
-│
-└── Tests
-    └── ManualTestPlan.md
-</p>
+<p>MessengerSolution
+<p>│
+<p>├── Server
+<p>│   ├── Program.cs
+<p>│   ├── Server.cs
+<p>│   └── ClientHandler.cs
+<p>│
+<p>├── Client
+<p>│   ├── MainWindow.xaml
+<p>│   ├── MainWindow.xaml.cs
+<p>│   ├── ClientConnection.cs
+<p>│   ├── MessageReceiver.cs
+<p>│   └── ChatMessage.cs

@@ -8,5 +8,5 @@
 <p>│   ├── Program.cs
 <p>│
 <p>├── Client
-<p>│   ├── MainWindow.xaml - Матвій(Кравець)
-<p>│   ├── MainWindow.xaml.cs -Діма
+<p>│   ├── MainWindow.xaml - Діма 
+<p>│   ├── MainWindow.xaml.cs -Матвій(Кравець)

@@ -9,4 +9,4 @@
 <p>│
 <p>├── Client
 <p>│   ├── MainWindow.xaml - Діма 
-<p>│   ├── MainWindow.xaml.cs -Матвій(Кравець)
+<p>│   ├── MainWindow.xaml.cs -Матвій

@@ -1,84 +1,98 @@
-﻿using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows;
 
-namespace WpfChatClient
+namespace ChatClient
 {
     public partial class MainWindow : Window
     {
-        TcpClient client;
-        NetworkStream stream;
-        string nickname;
+        private TcpClient client;
+        private NetworkStream stream;
+        private string nickname = "";
 
         public MainWindow()
         {
             InitializeComponent();
         }
 
-        private async void Connect_Click(object sender, RoutedEventArgs e)
+        private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
-            nickname = NicknameTextBox.Text.Trim();
-            if (string.IsNullOrEmpty(nickname))
+            if (string.IsNullOrWhiteSpace(NicknameBox.Text))
             {
-                MessageBox.Show("Введіть ім'я!");
+                MessageBox.Show("Введіть нікнейм.");
                 return;
             }
 
+            nickname = NicknameBox.Text;
+
             try
             {
-                client = new TcpClient("127.0.0.1", 5000); // IP сервера
+                client = new TcpClient("127.0.0.1", 5000);
                 stream = client.GetStream();
-                await SendMessageAsync($"{nickname} приєднався до чату");
-                ReceiveMessages();
-                UsersListBox.Items.Add(nickname);
+
+                // Повідомлення серверу про нове підключення
+                SendRaw($"[JOIN]{nickname}");
+
+                new Thread(ReceiveMessages).Start();
+                ChatBox.AppendText("Підключено до сервера.\n");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Не вдалося підключитись: " + ex.Message);
+                MessageBox.Show($"Помилка з’єднання: {ex.Message}");
             }
         }
 
-        private async void Send_Click(object sender, RoutedEventArgs e)
+        private void SendMessage_Click(object sender, RoutedEventArgs e)
         {
-            string message = MessageTextBox.Text.Trim();
-            if (!string.IsNullOrEmpty(message))
-            {
-                await SendMessageAsync($"{nickname}: {message}");
-                MessageTextBox.Clear();
-            }
+            if (string.IsNullOrWhiteSpace(MessageBox.Text)) return;
+
+            string msg = $"{nickname}: {MessageBox.Text}";
+            SendRaw(msg);
+            MessageBox.Clear();
         }
 
-        private async Task SendMessageAsync(string message)
+        private void SendRaw(string msg)
         {
-            byte[] data = Encoding.UTF8.GetBytes(message + "\n");
-            await stream.WriteAsync(data, 0, data.Length);
+            if (stream == null) return;
+            byte[] data = Encoding.UTF8.GetBytes(msg);
+            stream.Write(data, 0, data.Length);
         }
 
-        private async void ReceiveMessages()
+        private void ReceiveMessages()
         {
             byte[] buffer = new byte[1024];
-            int bytesRead;
+            int byteCount;
 
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+            try
             {
-                string response = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Dispatcher.Invoke(() =>
+                while ((byteCount = stream.Read(buffer, 0, buffer.Length)) > 0)
                 {
-                    ChatTextBox.AppendText(response);
-                    ChatTextBox.ScrollToEnd();
-                });
+                    string message = Encoding.UTF8.GetString(buffer, 0, byteCount);
+
+                    // Якщо це оновлення списку онлайн
+                    if (message.StartsWith("[USERS]"))
+                    {
+                        string[] users = message.Substring(7).Split(';');
+                        Dispatcher.Invoke(() =>
+                        {
+                            UserListBox.Items.Clear();
+                            foreach (var user in users)
+                                if (!string.IsNullOrWhiteSpace(user))
+                                    UserListBox.Items.Add(user);
+                        });
+                    }
+                    else
+                    {
+                        Dispatcher.Invoke(() => ChatBox.AppendText(message + "\n"));
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                Dispatcher.Invoke(() => ChatBox.AppendText("Втрачено з’єднання з сервером.\n"));
             }
         }
     }

@@ -1,144 +1,162 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-namespace ChatServer
+class Server
 {
-    class Program
+    static List<TcpClient> clients = new List<TcpClient>();
+    static Dictionary<TcpClient, string> clientNames = new Dictionary<TcpClient, string>();
+    const string historyPath = "history.txt";
+
+    static void Main()
     {
-        static void Main(string[] args)
+        TcpListener server = new TcpListener(IPAddress.Any, 8888);
+        server.Start();
+        Console.WriteLine("[SERVER] Запущено...");
+
+        while (true)
         {
-            ChatServer server = new ChatServer();
-            server.Start();
+            TcpClient client = server.AcceptTcpClient();
+            lock (clients)
+            {
+                clients.Add(client);
+            }
+            new Thread(() => HandleClient(client)).Start();
         }
     }
 
-    public class ChatServer
+
+    static void HandleClient(TcpClient client)
     {
-        private TcpListener tcpListener;
-        private Dictionary<TcpClient, string> clients = new Dictionary<TcpClient, string>();
-        private readonly object locker = new object();
-
-        public void Start()
+        try
         {
-            tcpListener = new TcpListener(IPAddress.Any, 5000);
-            tcpListener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true); // Додано для повторного використання адреси
-            tcpListener.Start();
-            Console.WriteLine("Сервер запущено на порту 5000...");
-
-            Console.CancelKeyPress += (sender, e) => // Для коректного завершення сервера
-            {
-                Console.WriteLine("Завершення сервера...");
-                tcpListener.Stop();
-                Environment.Exit(0);
-            };
+            using var reader = new StreamReader(client.GetStream(), Encoding.UTF8);
+            var netStream = client.GetStream();
 
             while (true)
             {
-                TcpClient client = tcpListener.AcceptTcpClient();
-                Console.WriteLine("Клієнт з’єднався.");
-                new Thread(() => HandleClient(client)).Start();
-            }
-        }
+                string data = reader.ReadLine();
+                if (string.IsNullOrEmpty(data)) break;
 
-        private void HandleClient(TcpClient client)
-        {
-            NetworkStream stream = client.GetStream();
-            string nickname = "???";
-            byte[] buffer = new byte[1024];
-            int byteCount;
+                string[] parts = data.Split('|', 3);
+                if (parts.Length < 3) continue;
 
-            try
-            {
-                // Чекаємо на JOIN-повідомлення
-                byteCount = stream.Read(buffer, 0, buffer.Length);
-                string firstMessage = Encoding.UTF8.GetString(buffer, 0, byteCount);
+                string type = parts[0], name = parts[1], payload = parts[2];
 
-                if (firstMessage.StartsWith("[JOIN]"))
+                if (type == "JOIN")
                 {
-                    nickname = firstMessage.Substring(6).Trim();
+                    lock (clients)
+                        clientNames[client] = name;
 
-                    lock (locker)
-                    {
-                        clients[client] = nickname;
-                    }
-
-                    Console.WriteLine($"Користувач '{nickname}' приєднався.");
-                    BroadcastSystemMessage($"{nickname} приєднався до чату.");
-                    BroadcastUserList();
+                    Broadcast($"COMMAND|SERVER|USER_JOINED:{name}");
+                    Send(client, $"COMMAND|SERVER|USER_LIST:{string.Join(",", clientNames.Values)}");
+                    continue;
                 }
-                else
+                else if (type == "EXIT")
                 {
-                    Console.WriteLine("Клієнт не надіслав JOIN. Відключено.");
+                    lock (clients)
+                    {
+                        clients.Remove(client);
+                        clientNames.Remove(client);
+                    }
+                    Broadcast($"COMMAND|SERVER|USER_LEFT:{name}");
                     client.Close();
+                    Console.WriteLine($"[-] {name} відключився");
                     return;
                 }
-
-                while ((byteCount = stream.Read(buffer, 0, buffer.Length)) > 0)
+                else if (type == "AUDIO" || type == "VIDEO" || type == "IMAGE")
                 {
-                    string message = Encoding.UTF8.GetString(buffer, 0, byteCount);
-                    Console.WriteLine($"[{nickname}] {message}");
-                    BroadcastMessage(message);
-                }
-            }
-            catch (Exception)
-            {
-                // Ігноруємо помилки з'єднання
-            }
-            finally
-            {
-                lock (locker)
-                {
-                    clients.Remove(client);
-                }
+                    int length = int.Parse(payload);
+                    byte[] buffer = new byte[length];
+                    int totalRead = 0;
 
-                Console.WriteLine($"Користувач '{nickname}' вийшов.");
-                BroadcastSystemMessage($"{nickname} вийшов з чату.");
-                BroadcastUserList();
-                client.Close();
-            }
-        }
-
-        private void BroadcastMessage(string message)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(message);
-            lock (locker)
-            {
-                foreach (var client in clients.Keys)
-                {
-                    try
+                    while (totalRead < length)
                     {
-                        client.GetStream().Write(data, 0, data.Length);
+                        int bytesRead = netStream.Read(buffer, totalRead, length - totalRead);
+                        if (bytesRead == 0) break;
+                        totalRead += bytesRead;
                     }
-                    catch { /* Пропустити */ }
+
+                    // Спочатку передаємо команду, потім — байти
+                    Broadcast($"{type}|{name}|{length}");
+                    BroadcastBinary(buffer);
+                    continue;
                 }
+
+                // Текстове повідомлення
+                File.AppendAllText(historyPath, $"[{DateTime.Now}] {name}: {payload}\n");
+                Broadcast(data);
             }
         }
-
-        private void BroadcastSystemMessage(string message)
+        catch (IOException) { }
+        finally
         {
-            BroadcastMessage($"[Сервер]: {message}");
-        }
-
-        private void BroadcastUserList()
-        {
-            string userListMessage = "[USERS]" + string.Join(";", clients.Values);
-            byte[] data = Encoding.UTF8.GetBytes(userListMessage);
-
-            lock (locker)
+            lock (clients)
             {
-                foreach (var client in clients.Keys)
+                clients.Remove(client);
+                clientNames.Remove(client);
+            }
+            client.Close();
+        }
+    }
+
+
+    static void Broadcast(string message)
+    {
+        byte[] msg = Encoding.UTF8.GetBytes(message + "\n");
+        lock (clients)
+        {
+            for (int i = clients.Count - 1; i >= 0; i--)
+            {
+                try
                 {
-                    try
-                    {
-                        client.GetStream().Write(data, 0, data.Length);
-                    }
-                    catch { /* Пропустити */ }
+                    clients[i].GetStream().Write(msg, 0, msg.Length);
+                }
+                catch
+                {
+                    clients[i].Close();
+                    clients.RemoveAt(i);
                 }
             }
+        }
+    }
+    static void BroadcastBinary(byte[] data)
+    {
+        lock (clients)
+        {
+            for (int i = clients.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    clients[i].GetStream().Write(data, 0, data.Length);
+                }
+                catch
+                {
+                    clients[i].Close();
+                    clients.RemoveAt(i);
+                }
+            }
+        }
+    }
+
+
+
+
+    static void Send(TcpClient client, string message)
+    {
+        try
+        {
+            byte[] msg = Encoding.UTF8.GetBytes(message + "\n");
+            client.GetStream().Write(msg, 0, msg.Length);
+        }
+        catch
+        {
+            client.Close();
+            clients.Remove(client);
         }
     }
 }

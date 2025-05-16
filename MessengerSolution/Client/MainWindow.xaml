@@ -1,40 +1,65 @@
-﻿<Window x:Class="ChatClient.MainWindow"
+<Window x:Class="MessengerClient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Чат-клієнт" Height="450" Width="600">
-    <Grid>
+        Title="Messenger Client" Height="500" Width="800"
+        Closing="Window_Closed">
+    <Grid Margin="10">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*" />
             <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="200" />
         </Grid.ColumnDefinitions>
-
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" /> <!-- Рядок для ніка -->
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Введення ніка -->
-        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" Margin="10">
-            <TextBlock Text="Нік:" VerticalAlignment="Center" />
-            <TextBox x:Name="NicknameBox" Width="150" Margin="5,0" />
-            <Button Content="Підключитися" Click="ConnectButton_Click" Width="100" />
+        <!-- Верхня панель: логін -->
+        <StackPanel Orientation="Horizontal" Grid.ColumnSpan="2" Margin="0,0,0,5">
+            <Grid Width="200" Margin="0,0,5,0">
+                <TextBox x:Name="UsernameBox"
+                         VerticalContentAlignment="Center"
+                         GotFocus="UsernameBox_GotFocus"
+                         LostFocus="UsernameBox_LostFocus"/>
+                <TextBlock x:Name="UsernamePlaceholder"
+                           Text="Enter name"
+                           Foreground="Gray"
+                           Margin="5,0,0,0"
+                           VerticalAlignment="Center"
+                           IsHitTestVisible="False"
+                           Visibility="Visible"/>
+            </Grid>
+            <Button x:Name="Connect" Content="Connect" Width="100" Margin="0,0,5,0" Click="Connect_Click"/>
+            <Button x:Name="DisconnectButton" Content="Disconnect" Width="100" Click="Disconnect_Click"/>
         </StackPanel>
 
-        <!-- Вікно чату -->
-        <TextBox x:Name="ChatBox" Grid.Row="1" Grid.Column="0" Margin="10" IsReadOnly="True"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+        <!-- Чат -->
+        <RichTextBox
+    x:Name="ChatBox"
+    Grid.Row="1"
+    Grid.Column="0"
+    Margin="0,0,5,0"
+    IsReadOnly="True"
+    VerticalScrollBarVisibility="Auto"
+    IsDocumentEnabled="True"
+    Focusable="False"
+    Background="White"
+    />
 
-        <!-- Ввід повідомлення -->
-        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="10">
-            <TextBox x:Name="MessageBox" Width="350" />
-            <Button Content="Надіслати" Width="100" Margin="10,0,0,0" Click="SendMessage_Click" />
+
+        <!-- Список користувачів -->
+        <GroupBox Header="Users" Grid.Row="1" Grid.Column="1">
+            <ListBox x:Name="UserList" />
+        </GroupBox>
+
+        <!-- Нижня панель: повідомлення та кнопки -->
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="0,5,5,0">
+            <TextBox x:Name="MessageBox" Width="200" Height="30" Margin="0,0,5,0"/>
+            <Button x:Name="SendText" Content="Send Text" Width="80" Margin="0,0,0,0" Click="SendText_Click"/>
+            <Button x:Name="SendImage" Content="Send Image" Width="90" Margin="0,0,0,0" Click="SendImage_Click"/>
+            <Button x:Name="SendAudio" Content="Send Audio" Width="90" Click="SendAudio_Click"/>
+            <Button x:Name="SendVideo" Content="Send Video" Click="SendVideo_Click" Margin="0,0" IsEnabled="False" Width="90"/>
         </StackPanel>
 
-        <!-- Список онлайн користувачів -->
-        <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Margin="10">
-            <TextBlock Text="Онлайн:" FontWeight="Bold" Margin="0,0,0,5" />
-            <ListBox x:Name="UserListBox" />
-        </StackPanel>
     </Grid>
 </Window>
